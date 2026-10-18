@@ -1,0 +1,29 @@
+# В Git добавляем только файлы и папки проекта.
+/*
+!/Dockerfile
+!/docker-compose.yaml
+!/requirements.txt
+!/README.md
+!/Task1/
+!/Task2/
+!/Task3/
+!/Task4/
+!/dags/
+!/api_snapshot/
+
+# Локальные настройки и временные файлы.
+**/.*
+!/.gitignore
+!/.gitattributes
+!/.dockerignore
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+*.bak
+*~
+AGENTS*.md
+CLAUDE.md
+GEMINI.md
+SKILL.md
+

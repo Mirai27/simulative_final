@@ -1,0 +1,236 @@
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: simulative-final-airflow:3.2.1
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__PARALLELISM: '2'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    AIRFLOW__API_AUTH__JWT_SECRET: citybikes-local-airflow-secret-for-study-project
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+    PYTHONPATH: /opt/airflow
+    PGHOST: postgres
+    PGPORT: '5432'
+    PGDATABASE: citybikes
+    PGUSER: airflow
+    PGPASSWORD: airflow
+    HADOOP_USER_NAME: anton_mishin
+    SPARK_LOCAL_IP: 127.0.0.1
+    POSTGRES_JDBC_JAR: /opt/airflow/jars/postgresql.jar
+    CITYBIKES_DM_PATH: hdfs://namenode:9000/anton_mishin/dm
+    CLICKHOUSE_HOST: clickhouse
+    CLICKHOUSE_PORT: '8123'
+    CLICKHOUSE_DATABASE: citybikes
+    CLICKHOUSE_USER: anton_mishin
+    CLICKHOUSE_PASSWORD: citybikes
+    CITYBIKES_DATA_DIR: /opt/airflow/data/${CITYBIKES_SNAPSHOT:-2026-10-10_14-10-19_826933_UTC}
+  volumes:
+    - ./dags:/opt/airflow/dags/pipeline:ro
+    - ./Task1/dags:/opt/airflow/dags/task1:ro
+    - ./Task2/dags:/opt/airflow/dags/task2:ro
+    - ./Task3/dags:/opt/airflow/dags/task3:ro
+    - ./Task1:/opt/airflow/Task1:ro
+    - ./Task2:/opt/airflow/Task2:ro
+    - ./Task3:/opt/airflow/Task3:ro
+    - ./api_snapshot:/opt/airflow/data:ro
+    - airflow-logs:/opt/airflow/logs
+  depends_on: &airflow-depends
+    postgres:
+      condition: service_healthy
+    airflow-init:
+      condition: service_completed_successfully
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - '127.0.0.1:5433:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./Task1/init_database.sql:/docker-entrypoint-initdb.d/01-citybikes.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U airflow -d airflow']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow-common
+    command: version
+    environment:
+      <<: *airflow-env
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: airflow
+      _AIRFLOW_WWW_USER_PASSWORD: airflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  airflow-apiserver:
+    <<: *airflow-common
+    command: api-server
+    ports:
+      - '127.0.0.1:8080:8080'
+    healthcheck:
+      test: ['CMD', 'curl', '--fail', 'http://localhost:8080/api/v2/monitor/health']
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    depends_on:
+      <<: *airflow-depends
+      airflow-apiserver:
+        condition: service_healthy
+      datanode:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '--fail', 'http://localhost:8974/health']
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    healthcheck:
+      test: ['CMD-SHELL', 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      interval: 20s
+      timeout: 10s
+      start_period: 30s
+      retries: 10
+
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    hostname: namenode
+    environment:
+      CLUSTER_NAME: citybikes
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      HDFS_CONF_dfs_replication: '1'
+      HDFS_CONF_dfs_permissions_enabled: 'false'
+      HDFS_CONF_dfs_webhdfs_enabled: 'true'
+      HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check: 'false'
+    ports:
+      - '127.0.0.1:9870:9870'
+    volumes:
+      - hdfs-name:/hadoop/dfs/name
+    healthcheck:
+      test: ['CMD', 'curl', '--fail', 'http://localhost:9870/']
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+    restart: unless-stopped
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    hostname: datanode
+    environment:
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      HDFS_CONF_dfs_replication: '1'
+      HDFS_CONF_dfs_permissions_enabled: 'false'
+      HDFS_CONF_dfs_datanode_hostname: datanode
+      SERVICE_PRECONDITION: namenode:9000 namenode:9870
+    volumes:
+      - hdfs-data:/hadoop/dfs/data
+    depends_on:
+      namenode:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', "hdfs dfsadmin -report | grep -q 'Live datanodes (1)' && hdfs dfsadmin -safemode get | grep -q 'Safe mode is OFF'"]
+      interval: 20s
+      timeout: 15s
+      start_period: 30s
+      retries: 10
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.8.22.13
+    environment:
+      CLICKHOUSE_DB: citybikes
+      CLICKHOUSE_USER: anton_mishin
+      CLICKHOUSE_PASSWORD: citybikes
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: '1'
+      TZ: UTC
+    ports:
+      - '127.0.0.1:8124:8123'
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ['CMD-SHELL', 'clickhouse-client --user "$${CLICKHOUSE_USER}" --password "$${CLICKHOUSE_PASSWORD}" --query "SELECT 1"']
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+    restart: unless-stopped
+
+  metabase-db-init:
+    image: postgres:16
+    environment:
+      PGHOST: postgres
+      PGUSER: airflow
+      PGPASSWORD: airflow
+      PGDATABASE: postgres
+    volumes:
+      - ./Task4/restore_metabase.sh:/restore_metabase.sh:ro
+      - ./Task4/metabase.dump:/backup/metabase.dump:ro
+    command: ['sh', '/restore_metabase.sh']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  metabase:
+    image: metabase/metabase:v0.64.1.x@sha256:08b1ebc81765c42f936acd4a83db4178e403805f9c473650e974a2b70cf38d37
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_HOST: postgres
+      MB_DB_PORT: '5432'
+      MB_DB_DBNAME: metabase
+      MB_DB_USER: airflow
+      MB_DB_PASS: airflow
+      MB_SITE_LOCALE: ru
+      MB_ANON_TRACKING_ENABLED: 'false'
+      JAVA_TIMEZONE: UTC
+      JAVA_OPTS: '-Xmx1g'
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      metabase-db-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '--fail', 'http://localhost:3000/api/health']
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  airflow-logs:
+  hdfs-name:
+  hdfs-data:
+  clickhouse-data:

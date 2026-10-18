@@ -1,0 +1,99 @@
+{
+  "source": "https://citybik.es/",
+  "api_documentation": "https://docs.citybik.es/api/v2",
+  "started_at_utc": "2026-10-10T14:10:19.826933+00:00",
+  "finished_at_utc": "2026-10-10T14:10:23.561032+00:00",
+  "status": "complete",
+  "selected_network_ids": [
+    "divvy",
+    "velib",
+    "nubija-changwon",
+    "bicielx",
+    "abu-dhabi-careem-bike"
+  ],
+  "files": [
+    {
+      "url": "https://api.citybik.es/v2/networks",
+      "response_url": "https://api.citybik.es/v2/networks",
+      "received_at_utc": "2026-10-10T14:10:20.588648+00:00",
+      "http_status": 200,
+      "content_type": "application/json",
+      "remaining_requests": "298",
+      "sha256": "ec16af2d522951091acc513cadc828c3519a96f582fc8d3fd49395b97038683e",
+      "bytes": 229600,
+      "file": "networks.json",
+      "kind": "networks",
+      "network_count": 815
+    },
+    {
+      "url": "https://api.citybik.es/v2/networks/divvy",
+      "response_url": "https://api.citybik.es/v2/networks/divvy",
+      "received_at_utc": "2026-10-10T14:10:21.546781+00:00",
+      "http_status": 200,
+      "content_type": "application/json",
+      "remaining_requests": "297",
+      "sha256": "8f5b442c9995e3ea3cd9bd2bf8f08e118878799b9ab7375bfb377a70ac7df1b2",
+      "bytes": 1164835,
+      "file": "network_divvy.json",
+      "kind": "network",
+      "network_id": "divvy",
+      "station_count": 2073
+    },
+    {
+      "url": "https://api.citybik.es/v2/networks/velib",
+      "response_url": "https://api.citybik.es/v2/networks/velib",
+      "received_at_utc": "2026-10-10T14:10:22.446098+00:00",
+      "http_status": 200,
+      "content_type": "application/json",
+      "remaining_requests": "296",
+      "sha256": "74b35b3684d9d17a692a43d79441e2a0b35a413d082a385dd7a846ff5cc5cdab",
+      "bytes": 654498,
+      "file": "network_velib.json",
+      "kind": "network",
+      "network_id": "velib",
+      "station_count": 1517
+    },
+    {
+      "url": "https://api.citybik.es/v2/networks/nubija-changwon",
+      "response_url": "https://api.citybik.es/v2/networks/nubija-changwon",
+      "received_at_utc": "2026-10-10T14:10:22.957990+00:00",
+      "http_status": 200,
+      "content_type": "application/json",
+      "remaining_requests": "295",
+      "sha256": "7161fbd03f45ea3b476d805680fa50dd84769fa0fe399510b79adbddebaf55dc",
+      "bytes": 138023,
+      "file": "network_nubija-changwon.json",
+      "kind": "network",
+      "network_id": "nubija-changwon",
+      "station_count": 449
+    },
+    {
+      "url": "https://api.citybik.es/v2/networks/bicielx",
+      "response_url": "https://api.citybik.es/v2/networks/bicielx",
+      "received_at_utc": "2026-10-10T14:10:23.316044+00:00",
+      "http_status": 200,
+      "content_type": "application/json",
+      "remaining_requests": "294",
+      "sha256": "888541058deb19c6a4fdff82b4475637141581c2f7e25472b6c736f772c07a1b",
+      "bytes": 24379,
+      "file": "network_bicielx.json",
+      "kind": "network",
+      "network_id": "bicielx",
+      "station_count": 112
+    },
+    {
+      "url": "https://api.citybik.es/v2/networks/abu-dhabi-careem-bike",
+      "response_url": "https://api.citybik.es/v2/networks/abu-dhabi-careem-bike",
+      "received_at_utc": "2026-10-10T14:10:23.558619+00:00",
+      "http_status": 200,
+      "content_type": "application/json",
+      "remaining_requests": "293",
+      "sha256": "845ff8d105138109a57a1cce427dc1d8c6ecce2888b3ec33ca4a43da7f2cf332",
+      "bytes": 1451,
+      "file": "network_abu-dhabi-careem-bike.json",
+      "kind": "network",
+      "network_id": "abu-dhabi-careem-bike",
+      "station_count": 2
+    }
+  ]
+}
